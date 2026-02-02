@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>marks map &#24859 &#10085</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="viewer"></div>
+    <div id="markers-container"></div>
+    <div id="stories-container"></div>
+
+    <div id="nav">
+        <div><video id="logo" width="100%" height="100%" autoplay muted loop><source src="assets/logos-and-icons/logo-rotating.mp4" type="video/mp4"></video></div>
+    </div>
+
+    <div id="initial-popup">
+        <div id="about">
+            <p class="about-text-01">My marks are my identifiers. </p>
+            <p class="about-text-02">Each of them underlies love, stories, growth and histories and composes the person I am. No one will ever have exactly the same composition of marks as I have and every composition of each individual is precious. </p>
+        
+            <p class="about-text-02">There are four kinds of marks</p>
+            <table>
+                <tbody>
+                <tr>
+                    <th scope="row"><img src="assets/markers/mole.png"></th>
+                    <td class="types">moles</td>
+                    <td>My parents gave me my moles. They are placed in the most arbitrary places, and they are there because it’s my nature. </td>
+                </tr>
+                <tr>
+                    <th scope="row"><img src="assets/markers/scar.png"></th>
+                    <td class="types">scars</td>
+                    <td>I gained them from my past experiences. Each experience caused me to bruise, bleed, cry, and grow. The injuries made part of me fall out, mend the gap with a scab and fill it with new flesh. <br> My mom and dad were sad every time I was hurt and gained a new scar, but to me they are the symbols of my growth. </td>
+                </tr>
+                <tr>
+                    <th scope="row"><img src="assets/markers/piercing.png"></th>
+                    <td class="types">piercings</td>
+                    <td>I did this to myself. I made holes on my completely fine ears because I wanted to. This was the first thing that was semi-permanently self-damaging my body to express myself. <br> My parents know about this and they don’t say much. Unless they are branching out from my ears. </td>
+                </tr>
+                <tr>
+                    <th scope="row"><img src="assets/markers/tattoo.png"></th>
+                    <td class="types">tattoos</td>
+                    <td>I also did this to myself. But my parents will never know. <br> I actually got caught by my mom. But my dad will never know about this until the day I die. </td>
+                </tr>
+                </tbody>
+            </table>
+            <button id="okay-button">okay...</button>
+        </div>
+        <div id="how-to">
+            <p class="about-text-01">Move around the figure.</p>
+            <p class="about-text-02"> &#9312;   left click &#8314; drag &#x3D; rotate</p>
+            <p class="about-text-02"> &#9313;   right click &#8314; drag &#x3D; pan</p>
+            <p class="about-text-02"> &#9314;   scroll &#x3D; rotate</p>
+            <button id="get-started-button">get started?</button>
+        </div>
+    </div>
+
+    <div id="buttons-bottom">
+        <button class="bottom" id="bottom-button-how-to">&quest;</button>
+        <button class="bottom" id="bottom-button-about">&#127760;</button>
+    </div>
+
+
+    <!--script-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

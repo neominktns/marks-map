@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vestiges-prototype</title>
+    <style>
+        /* ========================================
+           CSS STYLES - How everything looks
+           ======================================== */
+        
+        /* Body styling - the entire page */
+        body {
+            margin: 0; /* Remove default spacing around the page */
+            overflow: hidden; /* Hide scrollbars (we want full 3D experience) */
+            font-family: 'Arial', sans-serif; /* Use Arial font for all text */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple gradient background */
+        }
+        
+        /* Container for the 3D canvas - fills the entire screen */
+        #container {
+            width: 100vw; /* vw = viewport width, 100vw = full screen width */
+            height: 100vh; /* vh = viewport height, 100vh = full screen height */
+            display: flex; /* Use flexbox layout */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+        }
+        
+        /* Info box in the top left corner with instructions */
+        #info {
+            position: absolute; /* Don't move with page scroll, stay fixed */
+            top: 20px; /* 20 pixels from the top */
+            left: 20px; /* 20 pixels from the left */
+            color: white; /* White text */
+            background: rgba(0, 0, 0, 0.5); /* Black background at 50% transparency */
+            padding: 15px 20px; /* Space inside the box (top/bottom 15px, left/right 20px) */
+            border-radius: 10px; /* Rounded corners */
+            font-size: 14px; /* Text size */
+            backdrop-filter: blur(10px); /* Blur effect behind the box (makes it look fancy) */
+        }
+        
+        /* The h1 heading inside the info box */
+        #info h1 {
+            margin: 0 0 10px 0; /* No margin on top/sides, 10px on bottom */
+            font-size: 24px; /* Bigger text for the title */
+        }
+        
+        /* Paragraphs inside the info box */
+        #info p {
+            margin: 5px 0; /* 5px spacing top and bottom, no spacing left/right */
+            opacity: 0.9; /* Slightly transparent (90% visible) */
+        }
+        
+        /* ========================================
+           STORY BOXES - Individual boxes for each marker's story
+           Each marker gets its own box that appears when clicked
+           ======================================== */
+        .story-box {
+            position: fixed; /* Stay in place on screen, don't scroll */
+            width: 250px; /* Box is 250 pixels wide */
+            background: rgba(255, 255, 255, 0.95); /* White background at 95% opacity (slightly see-through) */
+            padding: 20px; /* 20px of space inside the box around the content */
+            border-radius: 12px; /* Rounded corners */
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); /* Shadow effect: no horizontal offset, 4px down, 16px blur, 20% black */
+            backdrop-filter: blur(10px); /* Blur effect behind the box */
+            display: none; /* Hidden by default - won't show until you click a marker */
+            z-index: 1000; /* Layer order - higher numbers appear on top, this ensures story boxes appear above everything else */
+            font-size: 14px; /* Text size inside the box */
+            line-height: 1.6; /* Space between lines of text (1.6 = 160% of font size) */
+            color: #333; /* Dark gray text color */
+        }
+        
+        /* When a story box has the "visible" class, show it */
+        .story-box.visible {
+            display: block; /* Make it visible (changes from display: none to display: block) */
+        }
+        
+        /* The h3 heading inside each story box */
+        .story-box h3 {
+            margin: 0 0 10px 0; /* No margin on top/sides, 10px on bottom */
+            font-size: 16px; /* Size of the story title */
+            color: #222; /* Very dark gray, almost black */
+        }
+        
+        /* ========================================
+           MARKER BUTTONS - The clickable dots on your 3D figure
+           ======================================== */
+        .marker {
+            position: absolute; /* Can be positioned anywhere on the screen */
+            width: 20px; /* 20 pixels wide */
+            height: 20px; /* 20 pixels tall (makes a square, which becomes a circle with border-radius) */
+            background: rgba(255, 107, 157, 0.9); /* Pink color at 90% opacity (this gets overridden by JavaScript with the actual color) */
+            border: 2px solid white; /* 2 pixel white border around the circle */
+            border-radius: 50%; /* Makes the square into a perfect circle (50% = half the width/height) */
+            cursor: pointer; /* Change mouse cursor to a hand when hovering (shows it's clickable) */
+            transform: translate(-50%, -50%); /* Centers the marker on its position (moves it left 50% of its width, up 50% of its height) */
+            transition: all 0.3s ease; /* Smooth animation for any changes (0.3 seconds, ease = smooth acceleration) */
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.5); /* Glowing effect around the marker */
+            z-index: 100; /* Layer order - appears above most things but below story boxes */
+        }
+        
+        /* When you hover your mouse over a marker */
+        .marker:hover {
+            transform: translate(-50%, -50%) scale(1.3); /* Keep it centered but make it 1.3x bigger (30% larger) */
+        }
+        
+        /* The + symbol inside each marker */
+        .marker::after {
+            content: '+'; /* Display a plus sign */
+            position: absolute; /* Position it inside the marker */
+            top: 50%; /* Centered vertically */
+            left: 50%; /* Centered horizontally */
+            transform: translate(-50%, -50%); /* Actually center it (accounts for the size of the + itself) */
+            color: white; /* White color */
+            font-size: 14px; /* Size of the + symbol */
+            font-weight: bold; /* Make it thick/bold */
+        }
+        
+        /* ========================================
+           LOADING SCREEN - Shows while the 3D model is loading
+           ======================================== */
+        #loading {
+            position: absolute; /* Fixed position on screen */
+            top: 50%; /* Start at 50% from top */
+            left: 50%; /* Start at 50% from left */
+            transform: translate(-50%, -50%); /* Center it perfectly (moves it back by half its own size) */
+            color: white; /* White text */
+            font-size: 24px; /* Big text */
+            text-align: center; /* Center the text inside the loading box */
+        }
+        
+        /* The spinning circle animation */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3); /* Light gray border (30% opacity white) */
+            border-top: 4px solid white; /* Top border is solid white - this creates the spinning effect */
+            border-radius: 50%; /* Makes it a perfect circle */
+            width: 40px; /* 40 pixels wide */
+            height: 40px; /* 40 pixels tall */
+            animation: spin 1s linear infinite; /* Apply the "spin" animation, 1 second per rotation, linear = constant speed, infinite = never stop */
+            margin: 20px auto; /* 20px margin top/bottom, auto left/right centers it */
+        }
+        
+        /* Define the spin animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); } /* Start at 0 degrees (no rotation) */
+            100% { transform: rotate(360deg); } /* End at 360 degrees (full circle) */
+        }
+        /* The browser automatically animates between 0deg and 360deg */
+    </style>
+</head>
+<body>
+    <!-- Container where the 3D canvas will be inserted by JavaScript -->
+    <div id="container"></div>
+    
+    <!-- Container where marker buttons will be created by JavaScript -->
+    <div id="markers-container"></div>
+    
+    <!-- Info box with title and instructions (always visible) -->
+    <div id="info">
+        <h1>Vestiges</h1>
+        <p>🖱️ Left click + drag to rotate</p>
+        <p>🖱️ Right click + drag to pan</p>
+        <p>🔍 Scroll to zoom</p>
+    </div>
+    
+    <!-- Container where story boxes will be created by JavaScript (one for each marker) -->
+    <div id="story-boxes-container"></div>
+    
+    <!-- Loading screen (hidden once model loads) -->
+    <div id="loading">
+        <div class="spinner"></div>
+        Loading your 3D model...
+    </div>
+
+    <!-- Load external JavaScript libraries needed for 3D -->
+    <!-- Three.js = main 3D library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls = allows mouse/trackpad to rotate camera -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GLTFLoader = loads .glb/.gltf 3D model files -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script>
+// ========================================
+// STORY DATA
+// This is where you define what happens when each marker is clicked
+// Each marker has a title, content (can be text, images, videos, etc.), and position on screen
+// ========================================
+const markerStories = {
+    // First marker: right wrist tattoo
+    'marker-tattoo-rightwrist': {
+        title: 'Right Wrist Tattoo', // Title shown in the story box
+        content: 'Here is my right wrist! I have a tattoo here.', // The actual story content (can be HTML!)
+        position: { top: '20%', right: '50px' } // Where the story box appears on screen (20% from top, 50px from right edge)
+    },
+    // Second marker: left ear piercing
+    'marker-piercing-leftear': {
+        title: 'Left Ear Piercing', // Title for this story
+        content: 'This is my piercing and its exactly on my earlobe.', // Story content
+        position: { top: '50%', right: '50px' } // Different position (50% from top = middle of screen)
+    }
+    // Add more markers here as you create them in Blender
+    // Just follow the same format: 'marker-name-from-blender': { title, content, position }
+};
+
+// ========================================
+// STORY BOX MANAGEMENT
+// ========================================
+
+// Object to store references to all the story box HTML elements
+// We need this so we can show/hide them later when markers are clicked
+const storyBoxes = {};
+
+// Function to toggle (show/hide) a story box when its marker is clicked
+function toggleStory(markerName) {
+    // Get the story box element for this specific marker
+    const storyBox = storyBoxes[markerName];
+    
+    // If the story box exists...
+    if (storyBox) {
+        // Toggle the 'visible' class on and off
+        // If it has the class, remove it (hide the box)
+        // If it doesn't have the class, add it (show the box)
+        storyBox.classList.toggle('visible');
+    }
+}
+
+// ========================================
+// SCENE SETUP
+// The "scene" is your entire 3D world - it holds everything
+// ========================================
+const scene = new THREE.Scene(); // Create a new empty 3D scene
+
+// Set the background color of the scene
+// 0x1a1a2e is hexadecimal color code (dark blue-ish)
+scene.background = new THREE.Color(0x1a1a2e);
+
+// ========================================
+// CAMERA SETUP
+// The camera is your "eyes" looking into the 3D world
+// ========================================
+
+// Create a perspective camera (mimics how human eyes see - things far away look smaller)
+const camera = new THREE.PerspectiveCamera(
+    75, // Field of view in degrees (how wide you can see - like a wide-angle lens)
+    window.innerWidth / window.innerHeight, // Aspect ratio (width divided by height of the screen)
+    0.1, // Near clipping plane (don't render anything closer than 0.1 units to camera)
+    1000 // Far clipping plane (don't render anything farther than 1000 units from camera)
+);
+
+// Set where the camera starts in 3D space
+// camera.position.set(x, y, z)
+// x = 0 (centered left/right)
+// y = 2 (slightly above center, looking down)
+// z = 5 (pulled back from the model so we can see it)
+camera.position.set(0, 2, 5);
+
+// ========================================
+// RENDERER SETUP
+// The renderer draws the 3D scene onto your 2D screen
+// ========================================
+
+// Create a WebGL renderer (uses your graphics card to draw 3D)
+// antialias: true = smooth edges (no jagged pixels)
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+// Make the renderer the same size as the browser window
+// window.innerWidth = width of the browser window in pixels
+// window.innerHeight = height of the browser window in pixels
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+// Disable shadows (you said you don't want shadows)
+// If this was true, objects could cast and receive shadows
+renderer.shadowMap.enabled = false;
+
+// Add the renderer's canvas (the actual drawing surface) to the HTML page
+// renderer.domElement = the <canvas> element that shows the 3D graphics
+// We're putting it inside the #container div
+document.getElementById('container').appendChild(renderer.domElement);
+
+// ========================================
+// ORBIT CONTROLS
+// This lets you rotate the camera around the model with your mouse/trackpad
+// ========================================
+
+// Create orbit controls
+// First parameter = which camera to control
+// Second parameter = which HTML element to listen to for mouse events (the canvas)
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+// Enable damping (makes camera movement smooth and natural, not instant stops)
+controls.enableDamping = true;
+
+// How much damping to apply
+// Lower number = more smooth/floaty movement
+// Higher number = more responsive/snappy movement
+// 0.05 is a good balance
+controls.dampingFactor = 0.05;
+
+// Minimum distance you can zoom in (prevents going inside the model)
+// 2 = can't get closer than 2 units to the center
+controls.minDistance = 2;
+
+// Maximum distance you can zoom out
+// 20 = can't get farther than 20 units from the center
+controls.maxDistance = 20;
+
+// ========================================
+// LIGHTING SETUP
+// Lights make the 3D model visible - without lights it would be pitch black
+// ========================================
+
+// AMBIENT LIGHT
+// Illuminates everything equally from all directions (like a cloudy day)
+// Think of it as the general brightness of the scene
+const ambientLight = new THREE.AmbientLight(
+    0xffffff, // Color: white (0xffffff = RGB: 255,255,255)
+    0.8 // Intensity: 0.8 = 80% brightness
+);
+scene.add(ambientLight); // Add the light to the scene (or it won't work)
+
+// DIRECTIONAL LIGHT 1
+// Like sunlight - comes from one direction, creates defined shadows
+const directionalLight1 = new THREE.DirectionalLight(
+    0xffffff, // Color: white
+    0.5 // Intensity: 50% brightness (dimmer than ambient light)
+);
+
+// Position the light in 3D space
+// (5, 10, 5) = to the right, above, and in front
+directionalLight1.position.set(5, 10, 5);
+
+scene.add(directionalLight1); // Add to scene
+
+// POINT LIGHT
+// Emits light in all directions from a single point (like a light bulb)
+const pointLight = new THREE.PointLight(
+    0xff6b9d, // Color: pink
+    0.3 // Intensity: 30% brightness (just a subtle pink accent)
+);
+
+// Position it above the scene
+// (0, 5, 0) = centered horizontally, 5 units up, centered depth
+pointLight.position.set(0, 5, 0);
+
+scene.add(pointLight); // Add to scene
+
+// ========================================
+// MODEL LOADING
+// This is where we load your 3D figure from Blender
+// ========================================
+
+// Create a GLTF loader (tool that can read .glb and .gltf files)
+const loader = new THREE.GLTFLoader();
+
+// Variable to store the loaded model once it's ready
+// "let" means the value can change later
+let loadedModel;
+
+// Object to store references to empty objects (markers) from Blender
+// {} = empty object, we'll add markers to it as we find them
+let markerObjects = {};
+
+// Start loading the model file
+loader.load(
+    // ========================================
+    // PARAMETER 1: File path to your 3D model
+    // ========================================
+    '3d-figure/figure.glb', // Path relative to your HTML file
+    
+    // ========================================
+    // PARAMETER 2: SUCCESS CALLBACK
+    // This function runs when the model loads successfully
+    // "gltf" parameter contains the loaded model data
+    // ========================================
+    function (gltf) {
+        // Extract the actual 3D scene from the loaded data
+        loadedModel = gltf.scene;
+        
+        // ========================================
+        // CENTER THE MODEL
+        // We want the model centered at (0,0,0) so it rotates nicely
+        // ========================================
+        
+        // Create an invisible box that wraps around the entire model
+        // This tells us the model's size and position
+        const box = new THREE.Box3().setFromObject(loadedModel);
+        
+        // Find the center point of that box
+        // new THREE.Vector3() creates a 3D point (x, y, z)
+        const center = box.getCenter(new THREE.Vector3());
+        
+        // Move the model so its center is at the origin (0,0,0)
+        // .sub() means subtract - we're moving it by the negative of its center
+        // This "recenters" the model
+        loadedModel.position.sub(center);
+        
+        // ========================================
+        // SCALE THE MODEL
+        // Make sure the model is a good size regardless of how big you made it in Blender
+        // ========================================
+        
+        // Get the dimensions of the bounding box (width, height, depth)
+        const size = box.getSize(new THREE.Vector3());
+        
+        // Find the largest dimension (width, height, or depth)
+        // Math.max() returns the biggest number from the list
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        // Calculate a scale factor to make the model roughly 3 units tall/wide
+        // If maxDim is 6, then scale = 3/6 = 0.5 (shrink to half size)
+        // If maxDim is 1.5, then scale = 3/1.5 = 2 (double the size)
+        const scale = 3 / maxDim;
+        
+        // Apply the scale uniformly to all axes (x, y, z)
+        // multiplyScalar() multiplies all three dimensions by the same number
+        loadedModel.scale.multiplyScalar(scale);
+        
+        // ========================================
+        // FIND MARKERS AND APPLY MATERIALS
+        // Loop through every object in the model to find markers and apply styling
+        // ========================================
+        
+        // .traverse() goes through every single object in the model hierarchy
+        // "child" = each object it finds (meshes, empties, cameras, etc.)
+        loadedModel.traverse(function (child) {
+            // ========================================
+            // FIND MARKERS (empty objects from Blender)
+            // ========================================
+            
+            // Check if this object has a name AND if that name starts with "marker-"
+            if (child.name && child.name.startsWith('marker-')) {
+                // Store a reference to this empty object in our markerObjects object
+                // markerObjects['marker-tattoo-rightwrist'] = the empty object
+                markerObjects[child.name] = child;
+                
+                // Log to the browser console so you can see what was found
+                // This helps with debugging - you can open DevTools and see the list
+                console.log('Found marker:', child.name, 'at position:', child.position);
+            }
+            
+            // ========================================
+            // APPLY MATERIAL TO VISIBLE MESHES
+            // ========================================
+            
+            // Check if this child is a mesh (visible 3D geometry)
+            // Empty objects are NOT meshes, so this only affects the actual body parts
+            if (child instanceof THREE.Mesh) {
+                // Replace whatever material it had in Blender with our custom material
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0x4a9eff, // Blue color (hex code)
+                    roughness: 0.5, // How rough the surface is (0 = mirror, 1 = chalk)
+                    metalness: 0.3 // How metallic it looks (0 = plastic, 1 = metal)
+                    // flatShading removed - this means smooth shading (respects Blender's shade smooth)
+                });
+                // If you wanted flat/low-poly look, you'd add: flatShading: true
+            }
+        });
+        
+        // Add the fully processed model to the scene (now it's visible!)
+        scene.add(loadedModel);
+        
+        // Create the marker buttons and story boxes based on what we found
+        createMarkersFromBlender();
+        
+        // Hide the loading screen since we're done loading
+        document.getElementById('loading').style.display = 'none';
+    },
+    
+    // ========================================
+    // PARAMETER 3: PROGRESS CALLBACK (optional)
+    // This function runs repeatedly while the file is downloading
+    // "xhr" = XMLHttpRequest object with download info
+    // ========================================
+    function (xhr) {
+        // Calculate what percentage has loaded
+        // xhr.loaded = bytes downloaded so far
+        // xhr.total = total bytes to download
+        // (xhr.loaded / xhr.total * 100) = percentage
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    
+    // ========================================
+    // PARAMETER 4: ERROR CALLBACK (optional)
+    // This function runs if something goes wrong during loading
+    // ========================================
+    function (error) {
+        // Log the error to browser console (open DevTools to see it)
+        console.error('An error occurred loading the model:', error);
+        
+        // Show an error message to the user (replaces the loading spinner)
+        document.getElementById('loading').innerHTML = 
+            '<p style="color: #ff6b6b;">Error loading model. Please check the console.</p>';
+    }
+);
+
+// ========================================
+// MARKER SYSTEM WITH COLOR CODING
+// This section creates the colored buttons and story boxes
+// ========================================
+
+// Define what color each marker type should be
+const markerColors = {
+    'mole': '#FF0000',      // Red
+    'scar': '#00FF00',      // Green
+    'piercing': '#0000FF',  // Blue
+    'tattoo': '#800080'     // Purple
+};
+
+// Array to store all the marker button elements and their 3D positions
+// We need this to update their screen positions every frame
+const markerElements = [];
+
+// ========================================
+// HELPER FUNCTION: Get marker type from name
+// Example: "marker-tattoo-rightwrist" → "tattoo"
+// ========================================
+function getMarkerType(markerName) {
+    // Split the name by dashes into an array
+    // "marker-tattoo-rightwrist" becomes ["marker", "tattoo", "rightwrist"]
+    const parts = markerName.split('-');
+    
+    // If the name has at least 2 parts...
+    if (parts.length >= 2) {
+        // Return the second part (index 1)
+        // parts[0] = "marker"
+        // parts[1] = "tattoo" ← this is what we want
+        return parts[1];
+    }
+    
+    // If the name format is wrong, default to 'mole'
+    return 'mole';
+}
+
+// ========================================
+// HELPER FUNCTION: Get readable label from marker name
+// Example: "marker-tattoo-rightwrist" → "Tattoo - Rightwrist"
+// ========================================
+function getMarkerLabel(markerName) {
+    // Split the name by dashes
+    const parts = markerName.split('-');
+    
+    // If the name has at least 3 parts (marker-type-bodypart)...
+    if (parts.length >= 3) {
+        // Get the type (parts[1]) and capitalize the first letter
+        // parts[1] = "tattoo"
+        // charAt(0) = "t" (first character)
+        // toUpperCase() = "T"
+        // slice(1) = "attoo" (everything after the first character)
+        // Result: "Tattoo"
+        const type = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+        
+        // Get the body part (everything after "marker-type-")
+        // parts.slice(2) = ["rightwrist"] (or could be ["left", "ear"] for multi-word parts)
+        // .join(' ') = combine with spaces: "rightwrist" or "left ear"
+        const bodyPart = parts.slice(2).join(' ');
+        
+        // Capitalize the first letter of the body part
+        const formattedBodyPart = bodyPart.charAt(0).toUpperCase() + bodyPart.slice(1);
+        
+        // Combine them with a dash: "Tattoo - Rightwrist"
+        return `${type} - ${formattedBodyPart}`;
+    }
+    
+    // If format is unexpected, just return the original name
+    return markerName;
+}
+
+// ========================================
+// CREATE MARKERS AND STORY BOXES
+// This function runs after the model loads
+// It creates all the clickable buttons and story boxes
+// ========================================
+function createMarkersFromBlender() {
+    // Get the HTML containers where we'll add elements
+    const markersContainer = document.getElementById('markers-container'); // For marker buttons
+    const storyBoxesContainer = document.getElementById('story-boxes-container'); // For story boxes
+    
+    // Loop through each marker we found in the Blender model
+    // "for...in" loops through object keys (marker names)
+    for (const markerName in markerObjects) {
+        // Get the 3D object for this marker
+        const markerObj = markerObjects[markerName];
+        
+        // Figure out what type of marker this is (mole, scar, piercing, tattoo)
+        const markerType = getMarkerType(markerName);
+        
+        // Get the color for this marker type
+        // If the type isn't in our colors object, default to magenta (#FF00FF)
+        const color = markerColors[markerType] || '#FF00FF';
+        
+        // ========================================
+        // CREATE THE MARKER BUTTON (the clickable dot on the 3D figure)
+        // ========================================
+        
+        // Create a new div element
+        const markerDiv = document.createElement('div');
+        
+        // Give it the 'marker' class (this applies all the CSS styling)
+        markerDiv.className = 'marker';
+        
+        // Set the tooltip that appears when you hover over it
+        markerDiv.title = getMarkerLabel(markerName);
+        
+        // Set the background color based on marker type
+        markerDiv.style.background = color;
+        
+        // Add a white border
+        markerDiv.style.border = '2px solid white';
+        
+        // Add a glowing shadow effect in the same color as the marker
+        markerDiv.style.boxShadow = `0 0 10px ${color}`;
+        
+        // ========================================
+        // CREATE THE STORY BOX (if there's a story defined for this marker)
+        // ========================================
+        
+        // Look up the story for this marker in our markerStories object
+        const story = markerStories[markerName];
+        
+        // If a story exists for this marker...
+        if (story) {
+            // Create a new div for the story box
+            const storyBox = document.createElement('div');
+            
+            // Give it the 'story-box' class (applies CSS styling)
+            storyBox.className = 'story-box';
+            
+            // Set the content of the story box (title + story content)
+            // innerHTML allows us to use HTML tags in the content
+            // Backticks (`) allow multi-line strings and ${} for variables
+            storyBox.innerHTML = `
+                <h3>${story.title}</h3>
+                <p>${story.content}</p>
+            `;
+            
+            // ========================================
+            // POSITION THE STORY BOX
+            // ========================================
+            
+            // If the story has position information...
+            if (story.position) {
+                // Set each position property if it exists
+                // This uses CSS positioning (top, bottom, left, right)
+                if (story.position.top) storyBox.style.top = story.position.top;
+                if (story.position.bottom) storyBox.style.bottom = story.position.bottom;
+                if (story.position.left) storyBox.style.left = story.position.left;
+                if (story.position.right) storyBox.style.right = story.position.right;
+            }
+            
+            // Add the story box to the HTML page
+            storyBoxesContainer.appendChild(storyBox);
+            
+            // Store a reference to this story box so we can show/hide it later
+            storyBoxes[markerName] = storyBox;
+        }
+        
+        // ========================================
+        // ADD CLICK HANDLER TO MARKER BUTTON
+        // ========================================
+        
+        // Add a click event listener to the marker button
+        // When the button is clicked, run this function...
+        markerDiv.addEventListener('click', () => {
+            // Toggle (show/hide) the story box for this marker
+            toggleStory(markerName);
+        });
+        
+        // Add the marker button to the HTML page
+        markersContainer.appendChild(markerDiv);
+        
+        // Store information about this marker for the animation loop
+        markerElements.push({
+            element: markerDiv, // The HTML button element
+            object3D: markerObj, // The 3D empty object from Blender
+            type: markerType // The type (mole, scar, piercing, tattoo)
+        });
+        
+        // Log success to console
+        console.log(`Created ${markerType} marker for ${markerName}`);
+    }
+}
+
+// ========================================
+// UPDATE MARKER POSITIONS
+// This function runs every frame (60 times per second)
+// It keeps the marker buttons positioned correctly on the 3D figure as you rotate it
+// ========================================
+function updateMarkers() {
+    // Loop through each marker we created
+    markerElements.forEach(marker => {
+        // Safety check - make sure the 3D object exists
+        // "return" exits this iteration of the loop early
+        if (!marker.object3D) return;
+        
+        // ========================================
+        // GET 3D POSITION
+        // ========================================
+        
+        // Create a new 3D vector (x, y, z point in space)
+        const worldPosition = new THREE.Vector3();
+        
+        // Get the actual world position of the empty object
+        // "World position" = where it is in the scene, accounting for:
+        // - The object's own position
+        // - Its parent's position
+        // - The model's position
+        // - Any rotations/scales applied
+        marker.object3D.getWorldPosition(worldPosition);
+        
+        // ========================================
+        // CONVERT 3D POSITION TO 2D SCREEN COORDINATES
+        // ========================================
+        
+        // Clone the position so we don't modify the original
+        const vector = worldPosition.clone();
+        
+        // Project the 3D position onto the 2D screen
+        // This is complex math that the camera does for us
+        // It figures out where this 3D point should appear on your 2D screen
+        vector.project(camera);
+        
+        // The projected vector now has values from -1 to 1
+        // -1 = left/bottom edge of screen
+        // 1 = right/top edge of screen
+        // We need to convert this to actual pixel coordinates
+        
+        // Calculate X pixel position
+        // (vector.x * 0.5 + 0.5) converts -1→1 to 0→1
+        // Multiply by window.innerWidth to get pixel position
+        // Example: if vector.x = 0 (center), this gives window.innerWidth / 2 (middle of screen)
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        
+        // Calculate Y pixel position
+        // Note: Y is negative because screen Y is inverted (0 at top, increases downward)
+        // But 3D Y is normal (0 at center, positive is up)
+        const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+        
+        // ========================================
+        // CHECK IF MARKER IS BEHIND THE CAMERA
+        // ========================================
+        
+        // After projection, vector.z tells us depth
+        // z > 1 means the point is behind the camera (we shouldn't see it)
+        const isBehind = vector.z > 1;
+        
+        // ========================================
+        // UPDATE THE HTML MARKER BUTTON POSITION
+        // ========================================
+        
+        // Set the left position in pixels
+        // This moves the marker horizontally
+        marker.element.style.left = x + 'px';
+        
+        // Set the top position in pixels
+        // This moves the marker vertically
+        marker.element.style.top = y + 'px';
+        
+        // Hide the marker if it's behind the camera, show it if it's in front
+        // 'none' = completely hidden (doesn't take up space)
+        // 'block' = visible
+        marker.element.style.display = isBehind ? 'none' : 'block';
+        
+        // Also control opacity (transparency)
+        // 0 = completely invisible
+        // 1 = fully visible
+        // This creates a fade effect when markers go behind the model
+        marker.element.style.opacity = isBehind ? '0' : '1';
+    });
+}
+
+// ========================================
+// ANIMATION LOOP
+// This is the "heartbeat" of the 3D scene
+// It runs continuously (about 60 times per second) to:
+// 1. Update the camera controls (smooth damping)
+// 2. Update marker positions (keep buttons on the figure)
+// 3. Render the scene (actually draw it to the screen)
+// ========================================
+function animate() {
+    // Request the browser to call this function again on the next frame
+    // This creates an infinite loop that runs ~60 times per second
+    // The browser automatically handles timing to maintain smooth 60 FPS
+    requestAnimationFrame(animate);
+    
+    // Update the orbit controls
+    // This applies the damping effect and handles any ongoing camera movements
+    controls.update();
+    
+    // Update all marker button positions
+    // This keeps the buttons stuck to the 3D figure as you rotate it
+    updateMarkers();
+    
+    // Actually render the scene to the screen
+    // This takes the current state of:
+    // - The scene (all 3D objects)
+    // - The camera (viewpoint)
+    // And draws it to the canvas
+    renderer.render(scene, camera);
+}
+
+// Start the animation loop
+// Without this call, nothing would ever render - it would just be a static setup
+animate();
+
+// ========================================
+// WINDOW RESIZE HANDLER
+// When the user resizes their browser window, we need to update the camera and renderer
+// Otherwise the 3D view would be stretched/squashed
+// ========================================
+window.addEventListener('resize', function() {
+    // Update the camera's aspect ratio to match the new window size
+    // If the window gets wider/narrower, the camera needs to know
+    camera.aspect = window.innerWidth / window.innerHeight;
+    
+    // Tell the camera to recalculate its projection matrix
+    // The projection matrix is complex math that determines how 3D points map to 2D screen
+    // It depends on the aspect ratio, so we need to update it
+    camera.updateProjectionMatrix();
+    
+    // Resize the renderer to match the new window size
+    // This makes the canvas fill the entire window again
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+    </script>
+</body>
+</html>
